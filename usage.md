@@ -13,7 +13,9 @@ SubtitleTranslator can run in two modes:
 
 ### Synopsis
 
+```
 dotnet run --project SubtitleTranslator.csproj -- "<input-file>" "<output-srt>" "<target-lang>"
+```
 
 ### Arguments
 
