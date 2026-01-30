@@ -26,40 +26,25 @@ dotnet run --project SubtitleTranslator.csproj -- "<input-file>" "<output-srt>" 
 ### Examples
 
 **Translate subtitles from a video file to English:**
-
-  dotnet run --project SubtitleTranslator.csproj -- "D:\Videos\The.Copenhagen.Test.S01E01.1080p.WEB-DL-[Feranki1980].mkv" "D:\Videos\The.Copenhagen.Test.S01E01.en.srt" "en"
-
+```
+dotnet run --project SubtitleTranslator.csproj -- "D:\Videos\The.Copenhagen.Test.S01E01.1080p.WEB-DL-[Feranki1980].mkv" "D:\Videos\The.Copenhagen.Test.S01E01.en.srt" "en"
+```
 **Translate an existing SRT file to French:**
-
-  dotnet run --project SubtitleTranslator.csproj -- "episode1.srt" "episode1.fr.srt" "fr"
-
+```
+dotnet run --project SubtitleTranslator.csproj -- "episode1.srt" "episode1.fr.srt" "fr"
+```
 **Translate MKV subtitles to Spanish:**
-
-  dotnet run --project SubtitleTranslator.csproj -- "movie.mkv" "movie.es.srt" "es"
-
+```
+dotnet run --project SubtitleTranslator.csproj -- "movie.mkv" "movie.es.srt" "es"
+```
 **Translate MP4 subtitles to German:**
-
-  dotnet run --project SubtitleTranslator.csproj -- "C:\Movies\documentary.mp4" "C:\Movies\documentary.de.srt" "de"
-
+```
+dotnet run --project SubtitleTranslator.csproj -- "C:\Movies\documentary.mp4" "C:\Movies\documentary.de.srt" "de"
+```
 **Translate subtitles to Hebrew:**
-
-  dotnet run --project SubtitleTranslator.csproj -- "series\episode_03.mkv" "series\episode_03.he.srt" "he"
-
-**Translate subtitles to Japanese:**
-
-  dotnet run --project SubtitleTranslator.csproj -- "anime.mkv" "anime.ja.srt" "ja"
-
-**Translate subtitles to Portuguese:**
-
-  dotnet run --project SubtitleTranslator.csproj -- "show.srt" "show.pt.srt" "pt"
-
-**Translate subtitles to Russian:**
-
-  dotnet run --project SubtitleTranslator.csproj -- "film.mkv" "film.ru.srt" "ru"
-
-**Translate subtitles to Chinese:**
-
-  dotnet run --project SubtitleTranslator.csproj -- "drama.srt" "drama.zh.srt" "zh"
+```
+dotnet run --project SubtitleTranslator.csproj -- "series\episode_03.mkv" "series\episode_03.he.srt" "he"
+```
 
 ---
 
