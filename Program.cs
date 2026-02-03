@@ -1,8 +1,5 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
-using System.Collections.Generic;
+using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -82,11 +79,12 @@ internal class Program
             .AddRow("Input", input.EscapeMarkup())
             .AddRow("Output", output.EscapeMarkup())
             .AddRow("Target Language", lang)
+            .AddRow("Subtitle Track", "0 (Default)")
             .AddRow("Chunk Size", "10 entries");
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
 
-        return await ProcessTranslation(input, output, lang, host, logger);
+        return await ProcessTranslation(input, output, lang, 0, host, logger);
     }
 
     private static async Task<int> RunInteractiveMode(IHost host, ILogger<Program> logger)
@@ -108,6 +106,34 @@ internal class Program
                     return ValidationResult.Success();
                 }));
         AnsiConsole.WriteLine();
+
+        // Phase 1.5: Select Subtitle Track
+        var subtitleTrackIndex = 0;
+        if (!string.Equals(Path.GetExtension(input), ".srt", StringComparison.OrdinalIgnoreCase))
+        {
+            AnsiConsole.MarkupLine("[cyan]Phase 1.5:[/] [bold]Select Subtitle Track[/]");
+            var tracks = await GetSubtitleTracks(input, logger);
+
+            if (tracks.Count == 0)
+            {
+                AnsiConsole.MarkupLine("[yellow]⚠[/] No subtitle tracks found in the video file.");
+            }
+            else if (tracks.Count == 1)
+            {
+                AnsiConsole.MarkupLine($"[green]✓[/] Automatically selected the only subtitle track: [bold]{tracks[0]}[/]");
+                subtitleTrackIndex = tracks[0].SubtitleIndex;
+            }
+            else
+            {
+                var selection = AnsiConsole.Prompt(
+                    new SelectionPrompt<SubtitleTrack>()
+                        .Title("Select the subtitle track to translate:")
+                        .PageSize(10)
+                        .AddChoices(tracks));
+                subtitleTrackIndex = selection.SubtitleIndex;
+            }
+            AnsiConsole.WriteLine();
+        }
 
         // Phase 2: Target language
         AnsiConsole.MarkupLine("[cyan]Phase 2:[/] [bold]Select Target Language[/]");
@@ -212,14 +238,15 @@ Response Format:
             .AddRow("Input", input.EscapeMarkup())
             .AddRow("Output", output.EscapeMarkup())
             .AddRow("Target Language", lang)
+            .AddRow("Subtitle Track", subtitleTrackIndex.ToString())
             .AddRow("Chunk Size", "10 entries");
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
 
-        return await ProcessTranslation(input, output, lang, host, logger);
+        return await ProcessTranslation(input, output, lang, subtitleTrackIndex, host, logger);
     }
 
-    private static async Task<int> ProcessTranslation(string input, string output, string lang, IHost host, ILogger<Program> logger)
+    private static async Task<int> ProcessTranslation(string input, string output, string lang, int subtitleTrackIndex, IHost host, ILogger<Program> logger)
     {
         var tempSrt = string.Empty;
         var deleteTemp = false;
@@ -241,7 +268,7 @@ Response Format:
                 .Spinner(Spinner.Known.Dots)
                 .StartAsync("[yellow]Extracting subtitles with ffmpeg...[/]", async ctx =>
                 {
-                    var ffmpegArgs = $"-y -i \"{input}\" -map 0:s:0 \"{tempSrt}\"";
+                    var ffmpegArgs = $"-y -i \"{input}\" -map 0:s:{subtitleTrackIndex} \"{tempSrt}\"";
                     var psi = new ProcessStartInfo("ffmpeg", ffmpegArgs) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
                     var p = Process.Start(psi);
                     if (p == null)
@@ -391,6 +418,67 @@ Response Format:
         AnsiConsole.MarkupLine($"[green]✓[/] [bold]Translated subtitles written to:[/] {output.EscapeMarkup()}");
         await host.StopAsync();
         return 0;
+    }
+
+    private record SubtitleTrack(int StreamIndex, int SubtitleIndex, string Language, string Title)
+    {
+        public override string ToString()
+        {
+            var info = new List<string>();
+            if (!string.IsNullOrEmpty(Language)) info.Add($"Lang: {Language}");
+            if (!string.IsNullOrEmpty(Title)) info.Add($"Title: {Title}");
+            var infoStr = info.Count > 0 ? $" ({string.Join(", ", info)})" : "";
+            return $"Subtitle Track #{SubtitleIndex}{infoStr}";
+        }
+    }
+
+    private static async Task<List<SubtitleTrack>> GetSubtitleTracks(string input, ILogger<Program> logger)
+    {
+        var tracks = new List<SubtitleTrack>();
+        try
+        {
+            var ffprobeArgs = $"-v error -select_streams s -show_entries stream=index:stream_tags=language,title -of json \"{input}\"";
+            var psi = new ProcessStartInfo("ffprobe", ffprobeArgs)
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(psi);
+            if (process == null) return [];
+
+            var output = await process.StandardOutput.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0) return [];
+
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.TryGetProperty("streams", out var streams))
+            {
+                int subtitleIdx = 0;
+                foreach (var stream in streams.EnumerateArray())
+                {
+                    int streamIdx = stream.GetProperty("index").GetInt32();
+                    string lang = string.Empty;
+                    string title = string.Empty;
+
+                    if (stream.TryGetProperty("tags", out var tags))
+                    {
+                        if (tags.TryGetProperty("language", out var langProp)) lang = langProp.GetString() ?? string.Empty;
+                        if (tags.TryGetProperty("title", out var titleProp)) title = titleProp.GetString() ?? string.Empty;
+                    }
+
+                    tracks.Add(new SubtitleTrack(streamIdx, subtitleIdx++, lang, title));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to get subtitle tracks with ffprobe");
+        }
+        return tracks;
     }
 }
 
