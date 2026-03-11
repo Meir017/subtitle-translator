@@ -32,7 +32,12 @@ public class CopilotTranslator : ITranslator, IDisposable
         {
             _logger.LogDebug(ex, "Error disposing old session (ignored)");
         }
-        _session = await _client.CreateSessionAsync(new SessionConfig { Model = "gpt-4.1", Streaming = false });
+        _session = await _client.CreateSessionAsync(new SessionConfig
+        { 
+            Model = "gpt-4.1", 
+            Streaming = false, 
+            OnPermissionRequest = PermissionHandler.ApproveAll
+        });
         _messagesSent = 0;
         _logger.LogDebug("Created new Copilot session.");
     }
