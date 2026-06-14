@@ -164,7 +164,13 @@ internal class Program
             .StartAsync("[yellow]Generating file name suggestions...[/]", async ctx =>
             {
                 var copilotClient = host.Services.GetRequiredService<CopilotClient>();
-                await using var session = await copilotClient.CreateSessionAsync(new SessionConfig { Model = "gpt-4.1", Streaming = false });
+                await using var session = await copilotClient.CreateSessionAsync(new SessionConfig
+                {
+                    Model = "gpt-4.1",
+                    Streaming = false,
+                    OnPermissionRequest = PermissionHandler.ApproveAll,
+                    Tools = []
+                });
 
                 var prompt = $@"Given an input video file named ""{Path.GetFileName(input)}"" that will be translated to language code ""{lang}"", suggest 6 creative and clear output filenames for the translated subtitle file (.srt).
 Rules:
